@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../../../common/errors/domain.exception.js';
+import { DomainException } from '../../../../common/errors/domain.exception.js';
 
 export class InvalidCredentialsException extends DomainException {
   constructor(detail = 'Kombinasi email atau password salah.') {
