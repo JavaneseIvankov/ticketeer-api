@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppConfigService } from "../config/app-config.service.js";
+import { entities }from "./entities.js"
 
 @Module({
    imports: [
@@ -13,8 +14,7 @@ import { AppConfigService } from "../config/app-config.service.js";
             username: cfg.dbUsername,
             password: cfg.dbPassword,
             database: cfg.dbName,
-            // TODO: define entities
-            entities: undefined,
+            entities: entities,
             synchronize: !cfg.isProduction,
             logging: !cfg.isProduction && !cfg.isTest ? ['error', 'warn'] : false,
          })
