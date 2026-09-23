@@ -6,9 +6,9 @@ import { AppService } from './app.service.js';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @UseGuards(AuthGuard('local'))
+  @UseGuards(AuthGuard('jwt'))
   @Post('auth/login')
   async login(@Request() req: any) {
-   return req.user
+    return req.user;
   }
 }
