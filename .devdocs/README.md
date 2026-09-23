@@ -58,6 +58,11 @@ ticketeer-api/
 ├─ README.md
 ```
 
+### Error Handling
+Untuk memudahkan error matching, handling, dan filtering, kita akan mendefinisikan sebuah custom error class bernama DomainException, yang diturunkan dari kelas HttpException (sehingga mempermudah handling di response boundary nantinya). 
+
+Nantinya kita akan menurunkan DomainException ini untuk setiap Domain Error spesifik (seperti QuotaExceededException) yang akan kita gunakan untuk pemodelan failure modes pada usecases. Selain itu, saya pikir akan merasa terbantu jika kita juga menurukan DomainException ke bentuk yang generic seperti EntityNotFoundException yang bisa digunakan di berbagai macam modul ketika kita menemui kasus dimana sebuah entitas tidak ditemukan.
+
 
 setiap module dalam modules kurang lebih akan memiliki struktur seperti ini
 
