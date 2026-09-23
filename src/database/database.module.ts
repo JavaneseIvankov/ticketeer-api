@@ -15,6 +15,7 @@ import { entities }from "./entities.js"
             password: cfg.dbPassword,
             database: cfg.dbName,
             entities: entities,
+            // TODO: implement actual migration once schema is stable enough
             synchronize: !cfg.isProduction,
             logging: !cfg.isProduction && !cfg.isTest ? ['error', 'warn'] : false,
          })
