@@ -25,6 +25,55 @@ Sesuai dengan arahan untuk challenge ini, kita akan memakai NestJS sebagai backe
 - supertest dan vitest untuk testing 
 - nestjs/schedule untuk background job 
 
+### Struktur Proyek
+Ini merupakan desain awal, proyek
+```
+ticketeer-api/
+├─ .devdocs/
+│  ├─ README.md
+├─ src/
+│  ├─ main.ts
+│  ├─ app.module.ts
+│  ├─ app.controller.ts
+│  ├─ app.controller.spec.ts
+│  ├─ app.service.ts
+│  ├─ common/
+│  │  ├─ decorators/
+│  │  ├─ dto/
+│  │  ├─ enums/
+│  │  ├─ errors/
+│  │  ├─ filters/
+│  │  ├─ guards/
+│  │  ├─ interfaces/
+│  ├─ config/
+│  ├─ database/
+│  ├─ modules/
+│  │  ├─ auth/
+│  │  ├─ events/
+│  │  ├─ orders/
+│  │  ├─ tickets/
+│  │  ├─ users/
+│  ├─ test/
+├─ package.json
+├─ README.md
+```
+
+
+setiap module dalam modules kurang lebih akan memiliki struktur seperti ini
+
+```
+modules/
+├─ <nama fitur>/ 
+│  ├─ domain/
+│  │  ├─ errors/ --> custom domain error 
+│  │  ├─ ports/ --> berisi kontrak (berupa abstract class) yang akan diimplementasikan di infra
+│  ├─ dto/ --> bentuk request dan response (diimplementasikan dalam bentuk class)
+│  ├─ entities/ --> entitas (annnotated dengan ORM decorators)
+│  ├─ infra/ --> implementasi dari ports
+│  ├─ <nama fitur>.module.ts
+```
+
+
 ### Domain Modeling
 
 #### Definisi
