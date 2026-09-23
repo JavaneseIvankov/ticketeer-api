@@ -15,6 +15,16 @@ GIVEN, WHEN, THEN ([referensi](https://agilealliance.org/glossary/given-when-the
 
 Tapi sebelum itu kita perlu mendefinisika entity apa saja yang terlibat di domain aplikasi ini.
 
+### Tech Stacks
+Sesuai dengan arahan untuk challenge ini, kita akan memakai NestJS sebagai backend framework. Untuk keputusan library pendamping lain, saya akan mengikuti dokumentasi resmi dari docs NestJS untuk memilih library dengan support dan dokumentasi paling baik, yaitu:
+
+- nestjs/config untuk env config management
+- class-validator untuk parsing env dan validasi input 
+- typeorm untuk orm dan manajemen skema database
+- nestjs/passport untuk memudahkan autentikasi JWT
+- supertest dan vitest untuk testing 
+- nestjs/schedule untuk background job 
+
 ### Domain Modeling
 
 #### Definisi
