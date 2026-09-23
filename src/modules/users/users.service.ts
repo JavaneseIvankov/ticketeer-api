@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '../database/entities.js';
-import { UserRole } from '../common/enums/index.js';
+import { User } from '../../database/entities.js';
+import { UserRole } from '../../common/enums/index.js';
+import * as bcrypt from 'bcrypt'
 
 @Injectable()
 export class UsersService {
@@ -9,7 +10,7 @@ export class UsersService {
       const now = new Date()
       this.user.id = "d06440e0-48a1-4639-9aa7-a1fb0ae5e565"
       this.user.email = "johndoe@email.com"
-      this.user.password = "password"
+      this.user.password = bcrypt.hashSync("password", 10)
       this.user.fullName = "John Doe"
       this.user.role = UserRole.CUSTOMER
       this.user.hashedRefreshToken = null
