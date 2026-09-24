@@ -10,8 +10,7 @@ Dokumen ini juga akan ditulis dengan format yang tidak formal demi kecepatan dev
 
 Mengingat ini adalah domain yang umum dan cukup relate dengan kehidupan sehari-hari, fase _domain modeling_ pada project ini seharusnya tidak terlalu rumit.
 
-Saya akan menggunakan format
-GIVEN, WHEN, THEN ([referensi](https://agilealliance.org/glossary/given-when-then/)) untuk merumuskan dan menjabarkan skenario usecases, karena format ini cukup compact dan mudah untuk dipakai.
+Untuk use case, alur fitur dirangkum secara ringkas per modul agar langsung berfokus ke flow bisnis dan penanganan konkurensi tanpa format berbelit-belit.
 
 Tapi sebelum itu kita perlu mendefinisika entity apa saja yang terlibat di domain aplikasi ini.
 
@@ -196,6 +195,7 @@ interface Order {
 
    orderStatus: OrderStatus
    expiresAt: Date // digunakan untuk hold window
+   idempotencyKey: string | null // opsional dari client untuk mencegah duplikasi order saat retry
 
    createdAt: Date
    updatedAt: Date
@@ -240,3 +240,67 @@ interface TicketTier {
 }
 
 ```
+
+### Use Cases
+
+Agar praktis dan nggak bertele-tele, flow use case dirangkum per modul dengan fokus ke flow utama, batasan bisnis, dan penanganan edge case (terutama soal race condition dan kuota).
+
+
+#### 1. Autentikasi dan Akun (Auth & Users)
+Pemisahan hak akses antara Customer (pembeli tiket) dan Organizer (pengelola event), plus manajemen sesi JWT.
+
+- Registrasi (UC-1.1): Endpoint pendaftaran untuk Customer dan Organizer (pembedanya di field role). Password di-hash dengan bcrypt, email wajib unik (kalau duplikat, throw 409 Conflict).
+- Login (UC-1.2): Menerbitkan sepasang token, access_token (15 menit) dan refresh_token (7 hari). Hash refresh token disimpan di tabel user untuk validasi sesi. Kalau kredensial salah, return 401 Unauthorized secara generik.
+- Refresh Token Rotation (UC-1.3): Saat client refresh token, buat pasangan token baru dan timpa hash lama di db. Mekanisme rotasi ini membuat kita tidak perlu tabel blacklist token. Kalau token invalid, expired, atau hash-nya tidak cocok, tolak 401 dan paksa login ulang.
+- Logout (UC-1.4): Kosongkan hashedRefreshToken di database supaya refresh token yang dipegang client langsung hangus.
+- Profil (/auth/me) (UC-1.5): Mengembalikan data user yang sedang login berdasarkan payload JWT.
+
+#### 2. Manajemen Event dan Tier Tiket (Events & Tiers)
+Dikelola oleh Organizer untuk setup event dan kuota, serta menyediakan katalog untuk publik.
+
+- Buat Event (UC-2.1): Khusus role ORGANIZER. Status awal selalu DRAFT dan otomatis terikat ke user yang sedang login.
+- Setup Tier Tiket (UC-2.2): Satu event bisa punya banyak tier (VIP, Reguler, dll). Masing-masing punya harga, total kuota, batas maksimal pembelian per akun (maxPerUser), serta periode penjualan (salesStart dan salesEnd). Saat dibuat, availableQuota bernilai sama dengan totalQuota.
+- Ownership Check (UC-2.3): Organizer hanya boleh mengubah, menghapus, atau menambah tier pada event miliknya sendiri. Akses ke event orang lain ditolak 403 Forbidden.
+- Batal Event (Cascade Void) (UC-2.4): Kalau event dibatalkan (CANCELLED), semua tiket yang statusnya ISSUED otomatis diubah jadi VOID dalam transaksi yang sama agar nggak bisa dipakai masuk venue.
+- Katalog Publik (UC-2.5): Publik dan customer bisa melihat daftar event yang berstatus PUBLISHED (mendukung search dan paginasi) beserta detail tier-nya. Event yang masih DRAFT disembunyikan.
+
+#### 3. Reservasi Tiket & Order (Concurrency & War Tiket)
+Bagian inti sistem untuk menangani lonjakan traffic pemesanan tiket tanpa takut overselling.
+
+- Booking / War Tiket (POST /orders) (UC-3.1):
+  - Validasi dasar: user role Customer, event status PUBLISHED, waktu pembelian berada di rentang salesStart–salesEnd, dan jumlah tiket tidak melebihi maxPerUser.
+  - Penanganan Concurrency: Menggunakan atomic conditional update dan pessimistic_write lock di TypeOrm.
+  - Kalau kuota aman, order dibuat dengan status PENDING_PAYMENT dan diberi batas bayar 15 menit (expiresAt).
+  - Kalau kuota habis / kalah cepat, query mengembalikan 0 baris dan sistem melempar 409 Conflict. Data kuota di db dijamin aman dan tidak pernah minus.
+  - Idempotency: Client bisa mengirim header Idempotency-Key. Kalau ada retry jaringan dengan key yang sama, langsung kembalikan order yang sudah berhasil dibuat tanpa memotong kuota ulang.
+- Simulasi Pembayaran (POST /orders/:id/pay) (UC-3.2):
+  - Pengganti payment gateway untuk konfirmasi pelunasan.
+  - Bayar sebelum 15 menit: status order jadi PAID, buat record Ticket sejumlah pembelian dengan kode tiket unik (TIK-YYYYMMDD-XXXX), status tiket diset ISSUED.
+  - Bayar setelah 15 menit: tolak pembayaran (400 Bad Request), ubah status order jadi EXPIRED, dan kuota yang tertahan langsung dikembalikan ke tier.
+- Batal Order Manual (UC-3.3): Customer bisa membatalkan order selama masih PENDING_PAYMENT. Kuota langsung balik ke tier. Order yang sudah PAID tidak bisa dibatalkan sembarangan.
+- Riwayat Order (UC-3.4): Customer bisa mengecek daftar dan detail order miliknya beserta status dan hitung mundur sisa waktu pembayaran.
+
+#### 4. Tiket dan Gate Check-in (Tickets & Admission)
+Distribusi e-ticket ke customer dan proses validasi pintu masuk oleh organizer.
+
+- E-Ticket Customer (UC-4.1): Menampilkan tiket resmi yang sudah PAID beserta kode unik dan statusnya.
+- Check-in di Pintu Masuk (UC-4.2): Petugas memvalidasi kode tiket di venue.
+  - Kalau tiket masih ISSUED dan event-nya sesuai, ubah status jadi ATTENDED dan simpan timestamp admittedAt.
+  - Kalau sudah berstatus ATTENDED, tolak (mencegah tiket dipakai lebih dari sekali).
+  - Kalau status tiket VOID (karena event dibatalkan), tolak.
+- Daftar Hadir (UC-4.3): Organizer bisa memantau rekap tiket yang diterbitkan dan daftar peserta yang sudah check-in di venue.
+
+#### 5. Laporan Penjualan (Event Analytics)
+- Rekap Penjualan (UC-5.1): Organizer bisa melihat ringkasan event miliknya: total tiket terjual, sisa kuota, serta total omzet kotor, baik secara agregat maupun rincian per tier.
+- Proteksi Akses Laporan (UC-5.2): Endpoint ini dilindungi ownership guard agar tidak bisa diintip organizer lain.
+
+#### 6. Background Scheduler (Auto-Release Kuota Expired)
+Untuk menangani kasus di mana pembeli booking tiket tapi kemudian ditinggal begitu saja tanpa bayar atau klik cancel.
+
+- Auto-Release Kuota Expired (UC-6.1):
+  - Cron job jalan berkala setiap 1 menit.
+  - Mencari order PENDING_PAYMENT yang sudah melewati expiresAt.
+  - Dalam satu query atomik, ubah status order-order tersebut jadi EXPIRED dan kembalikan kuotanya ke kolom availableQuota pada masing-masing tier.
+  - Catatan: Pendekatan scheduler cron ini dipilih karena simpel dan cukup untuk scope submission ini, meski untuk skala produksi lebih optimal menggunakan queue berbasis delay seperti BullMQ. Jika masih ada waktu, nantinya kita akan coba untuk mengimplementasikan delayed queue
+
+#### Service, Endpoints, and DTOs modelling
