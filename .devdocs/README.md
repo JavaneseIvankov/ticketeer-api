@@ -376,7 +376,7 @@ interface EventReportTierBreakdown {
   price: number;
   totalQuota: number;
   availableQuota: number;
-  soldTickets: number;
+  soldCount: number;
   revenue: number;
 }
 
@@ -386,8 +386,8 @@ interface EventReportDto {
   totalQuota: number;
   soldTickets: number;
   availableQuota: number;
-  grossRevenue: number;
-  tiers: EventReportTierBreakdown[];
+  totalRevenue: number;
+  tierBreakdown: EventReportTierBreakdown[];
 }
 
 // Service Interface
