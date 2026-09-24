@@ -7,7 +7,10 @@ import {
   EntityNotFoundException,
   ForbiddenResourceException,
 } from '../../common/errors/generic-domain.exception.js';
-import { InvalidDateRangeException } from './domain/errors/events.errors.js';
+import {
+  InvalidDateRangeException,
+  InvalidEventStateException,
+} from './domain/errors/events.errors.js';
 import { CreateEventDto } from './dto/create-event.dto.js';
 import { CreateTicketTierDto } from './dto/create-tier.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
@@ -154,8 +157,17 @@ export class EventsService implements IEventsService {
     });
   }
 
-  async cancelEvent(_eventId: string, _user: User): Promise<Event> {
-    throw new Error('Method not implemented yet.');
+  async cancelEvent(eventId: string, user: User): Promise<Event> {
+    const event = await this.getEventById(eventId);
+    this.assertOwnership(event, user);
+
+    if (event.status === EventStatus.CANCELLED) {
+      throw new InvalidEventStateException(
+        'Event ini sudah dalam status CANCELLED.',
+      );
+    }
+
+    return this.eventsRepository.cancelEvent(eventId);
   }
 
   async addTicketTier(
@@ -163,7 +175,24 @@ export class EventsService implements IEventsService {
     user: User,
     dto: CreateTicketTierDto,
   ): Promise<TicketTier> {
-    throw new Error('Method not implemented yet.');
+    const event = await this.getEventById(eventId);
+    this.assertOwnership(event, user);
+
+    if (new Date(dto.salesStart) > new Date(dto.salesEnd)) {
+      throw new InvalidDateRangeException(
+        'Waktu mulai penjualan harus sebelum waktu akhir penjualan.',
+      );
+    }
+
+    return this.eventsRepository.createTier({
+      name: dto.name,
+      price: dto.price,
+      totalQuota: dto.totalQuota,
+      maxPerUser: dto.maxPerUser,
+      eventId,
+      salesStart: new Date(dto.salesStart),
+      salesEnd: new Date(dto.salesEnd),
+    });
   }
 
   async updateTicketTier(
@@ -172,7 +201,32 @@ export class EventsService implements IEventsService {
     user: User,
     dto: UpdateTicketTierDto,
   ): Promise<TicketTier> {
-    throw new Error('Method not implemented yet.');
+    const event = await this.getEventById(eventId);
+    this.assertOwnership(event, user);
+
+    const tier = await this.eventsRepository.findTierById(tierId);
+    if (!tier || tier.eventId !== eventId) {
+      throw new EntityNotFoundException(
+        `Tier tiket dengan ID ${tierId} tidak ditemukan pada event ini.`,
+      );
+    }
+
+    if (dto.salesStart && dto.salesEnd) {
+      if (new Date(dto.salesStart) > new Date(dto.salesEnd)) {
+        throw new InvalidDateRangeException(
+          'Waktu mulai penjualan harus sebelum waktu akhir penjualan.',
+        );
+      }
+    }
+
+    return this.eventsRepository.updateTier(tierId, {
+      name: dto.name,
+      price: dto.price,
+      totalQuota: dto.totalQuota,
+      maxPerUser: dto.maxPerUser,
+      salesStart: dto.salesStart ? new Date(dto.salesStart) : undefined,
+      salesEnd: dto.salesEnd ? new Date(dto.salesEnd) : undefined,
+    });
   }
 
   async getEventReports(_eventId: string, _user: User): Promise<EventReport> {
