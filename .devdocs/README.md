@@ -78,6 +78,21 @@ modules/
 │  ├─ <nama fitur>.module.ts
 ```
 
+Cross cutting concern yang berkaitan dengan error, seperti Validation error dan request parsing, akan dihandle oleh ValidationPipe (app.useGlobalPipes(...)).
+
+Kita juga akan memakai global filter (app.useGlobalFilters(...)) untuk menangkap dan formatting error di boundary
+
+### Response Envelope Convention
+Untuk predictability dan ease of use, kita akan menggunakan wrapper type yang uniform untuk respons, 
+
+Ada beberapa kasus yang harus kita pikirkan, yaitu:
+- Success (data) envelope
+- Pagination Meta
+- Error/Failure envelope 
+   - Singular
+   - Plural -> Validation error, dimana akan mengakumulasi error.
+
+
 
 ### Domain Modeling
 
