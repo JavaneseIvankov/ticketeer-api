@@ -1,22 +1,33 @@
 import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    Index,
-    OneToMany,
-    PrimaryGeneratedColumn,
-    UpdateDateColumn,
-    type Relation
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  type Relation,
 } from 'typeorm';
 import { EventStatus } from '../../../common/enums/index.js';
 import { Ticket } from '../../tickets/entities/ticket.entity.js';
 import { TicketTier } from './ticket-tier.entity.js';
+import { User } from '../../../database/entities.js';
 
 @Entity('events')
 @Index(['status', 'eventDate'])
 export class Event {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({ type: 'uuid' })
+  @Index()
+  organizerId!: string;
+
+  @ManyToOne(() => User, (user) => user.events, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'organizerId' })
+  organizer!: Relation<User>;
 
   @Column({ length: 255 })
   title!: string;
@@ -35,7 +46,6 @@ export class Event {
     enum: EventStatus,
     default: EventStatus.DRAFT,
   })
-
   status!: EventStatus;
 
   @OneToMany(() => TicketTier, (tier) => tier.event, { cascade: true })

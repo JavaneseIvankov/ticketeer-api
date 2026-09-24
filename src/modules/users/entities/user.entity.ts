@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity.js';
 import { UserRole } from '../../../common/enums/index.js';
+import { Event } from '../../events/entities/event.entity.js';
 
 @Entity('users')
 export class User {
@@ -34,6 +35,9 @@ export class User {
   // digunakan untuk rotasi access_token
   @Column({ type: 'text', nullable: true })
   hashedRefreshToken!: string | null;
+
+  @OneToMany(() => Event, (event) => event.organizer)
+  events!: Relation<Event>[];
 
   @OneToMany(() => Order, (order) => order.customer)
   orders!: Relation<Order>[];
