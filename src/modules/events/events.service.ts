@@ -15,26 +15,10 @@ import { CreateEventDto } from './dto/create-event.dto.js';
 import { CreateTicketTierDto } from './dto/create-tier.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
 import { UpdateTicketTierDto } from './dto/update-tier.dto.js';
-import { EventsRepository } from './domain/ports/events-repository.port.js';
-
-// TODO: move to repository contract/port
-export interface EventReport {
-  eventId: string;
-  eventTitle: string;
-  totalQuota: number;
-  availableQuota: number;
-  soldTickets: number;
-  totalRevenue: number;
-  tierBreakdown: {
-    tierId: string;
-    tierName: string;
-    price: number;
-    totalQuota: number;
-    availableQuota: number;
-    soldCount: number;
-    revenue: number;
-  }[];
-}
+import {
+  EventReport,
+  EventsRepository,
+} from './domain/ports/events-repository.port.js';
 
 export interface IEventsService {
   findPublishedEvents(
@@ -229,8 +213,11 @@ export class EventsService implements IEventsService {
     });
   }
 
-  async getEventReports(_eventId: string, _user: User): Promise<EventReport> {
-    throw new Error('Method not implemented yet.');
+  async getEventReports(eventId: string, user: User): Promise<EventReport> {
+    const event = await this.getEventById(eventId);
+    this.assertOwnership(event, user);
+
+    return this.eventsRepository.getEventReports(eventId);
   }
 
   async getEventAttendees(
@@ -238,7 +225,10 @@ export class EventsService implements IEventsService {
     user: User,
     pagination: PaginationQueryDto,
   ): Promise<PaginatedResult<Ticket>> {
-    throw new Error('Method not implemented yet.');
+    const event = await this.getEventById(eventId);
+    this.assertOwnership(event, user);
+
+    return this.eventsRepository.getEventAttendees(eventId, pagination);
   }
 
   async admitAttendee(
@@ -246,7 +236,10 @@ export class EventsService implements IEventsService {
     ticketId: string,
     user: User,
   ): Promise<Ticket> {
-    throw new Error('Method not implemented yet.');
+    const event = await this.getEventById(eventId);
+    this.assertOwnership(event, user);
+
+    return this.eventsRepository.admitAttendee(eventId, ticketId);
   }
 
   private assertOwnership(event: Event, user: User): void {

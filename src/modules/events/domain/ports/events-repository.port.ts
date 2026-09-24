@@ -1,8 +1,27 @@
 import { Event } from '../../entities/event.entity.js';
 import { TicketTier } from '../../entities/ticket-tier.entity.js';
+import { Ticket } from '../../../tickets/entities/ticket.entity.js';
 import { PaginationQueryDto } from '../../../../common/dto/pagination-query-dto.js';
 import { PaginatedResult } from '../../../../common/interfaces/paginated-result.interface.js';
 import { EventStatus } from '../../../../common/enums/index.js';
+
+export interface EventReport {
+  eventId: string;
+  eventTitle: string;
+  totalQuota: number;
+  availableQuota: number;
+  soldTickets: number;
+  totalRevenue: number;
+  tierBreakdown: {
+    tierId: string;
+    tierName: string;
+    price: number;
+    totalQuota: number;
+    availableQuota: number;
+    soldCount: number;
+    revenue: number;
+  }[];
+}
 
 export interface FindEventsFilter {
   organizerId?: string;
@@ -63,4 +82,10 @@ export abstract class EventsRepository {
     tierId: string,
     data: UpdateTicketTierData,
   ): Promise<TicketTier>;
+  abstract getEventReports(eventId: string): Promise<EventReport>;
+  abstract getEventAttendees(
+    eventId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<PaginatedResult<Ticket>>;
+  abstract admitAttendee(eventId: string, ticketId: string): Promise<Ticket>;
 }
