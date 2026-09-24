@@ -26,3 +26,18 @@ export class MaxPerUserExceededException extends DomainException {
     super('MAX_PER_USER_EXCEEDED', detail, HttpStatus.BAD_REQUEST);
   }
 }
+
+export class OrderExpiredException extends DomainException {
+  constructor(
+    detail = 'Pesanan telah kedaluwarsa karena melebihi batas waktu pembayaran (15 menit).',
+  ) {
+    super('ORDER_EXPIRED', detail, HttpStatus.BAD_REQUEST);
+  }
+}
+
+export class InvalidOrderStatusException extends DomainException {
+  constructor(detail: string) {
+    super('INVALID_ORDER_STATUS', detail, HttpStatus.BAD_REQUEST);
+  }
+}
+

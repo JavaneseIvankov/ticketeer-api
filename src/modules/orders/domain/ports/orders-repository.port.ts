@@ -25,4 +25,7 @@ export abstract class OrdersRepository {
     customerId: string,
     ticketTierId: string,
   ): Promise<number>;
+  abstract payOrder(orderId: string): Promise<Order>;
+  abstract cancelOrder(orderId: string): Promise<Order>;
+  abstract releaseExpiredOrders(): Promise<number>;
 }

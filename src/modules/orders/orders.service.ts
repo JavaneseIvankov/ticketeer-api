@@ -121,14 +121,30 @@ export class OrdersService implements IOrdersService {
     user: User,
     dto: PayOrderDto,
   ): Promise<Order> {
-    throw new Error('Method not implemented yet.');
+    const order = await this.getOrderById(orderId, user);
+
+    if (order.customerId !== user.id) {
+      throw new ForbiddenResourceException(
+        'Hanya pemesan terkait yang berhak melakukan pembayaran.',
+      );
+    }
+
+    return this.ordersRepository.payOrder(orderId);
   }
 
   async cancelOrder(orderId: string, user: User): Promise<Order> {
-    throw new Error('Method not implemented yet.');
+    const order = await this.getOrderById(orderId, user);
+
+    if (order.customerId !== user.id) {
+      throw new ForbiddenResourceException(
+        'Hanya pemesan terkait yang berhak membatalkan pesanan.',
+      );
+    }
+
+    return this.ordersRepository.cancelOrder(orderId);
   }
 
   async releaseExpiredOrders(): Promise<number> {
-    throw new Error('Method not implemented yet.');
+    return this.ordersRepository.releaseExpiredOrders();
   }
 }
