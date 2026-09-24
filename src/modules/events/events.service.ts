@@ -162,7 +162,7 @@ export class EventsService implements IEventsService {
     const event = await this.getEventById(eventId);
     this.assertOwnership(event, user);
 
-    if (new Date(dto.salesStart) > new Date(dto.salesEnd)) {
+    if (new Date(dto.salesStart) >= new Date(dto.salesEnd)) {
       throw new InvalidDateRangeException(
         'Waktu mulai penjualan harus sebelum waktu akhir penjualan.',
       );
@@ -196,7 +196,7 @@ export class EventsService implements IEventsService {
     }
 
     if (dto.salesStart && dto.salesEnd) {
-      if (new Date(dto.salesStart) > new Date(dto.salesEnd)) {
+      if (new Date(dto.salesStart) >= new Date(dto.salesEnd)) {
         throw new InvalidDateRangeException(
           'Waktu mulai penjualan harus sebelum waktu akhir penjualan.',
         );
