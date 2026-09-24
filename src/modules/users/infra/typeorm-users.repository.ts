@@ -9,6 +9,7 @@ import {
 } from '../domain/ports/user.repository.ports.js';
 import { EmailAlreadyRegisteredException } from '../../auth/domain/errors/auth.errors.js';
 import { EntityNotFoundException } from '../../../common/errors/generic-domain.exception.js';
+import { isUniqueConstraint } from '../../../common/errors/postgres-error.helper.js';
 
 @Injectable()
 export class TypeOrmUsersRepository extends UsersRepository {
@@ -39,13 +40,10 @@ export class TypeOrmUsersRepository extends UsersRepository {
     try {
       return await this.userRepo.save(user);
     } catch (error) {
-      // TODO: buat helper untuk handling error yang terkait dengan db
-      if (error instanceof QueryFailedError) {
-        if (error.driverError?.code === '23505') {
-          throw new EmailAlreadyRegisteredException(
-            'Email ini sudah terdaftar dalam sistem.',
-          );
-        }
+      if (isUniqueConstraint(error)) {
+        throw new EmailAlreadyRegisteredException(
+          'Email ini sudah terdaftar dalam sistem.',
+        );
       }
       throw error;
     }

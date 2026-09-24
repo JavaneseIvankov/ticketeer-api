@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { isUniqueConstraint } from '../../../common/errors/postgres-error.helper.js';
 import { Event } from '../entities/event.entity.js';
 import { TicketTier } from '../entities/ticket-tier.entity.js';
 import { Ticket } from '../../tickets/entities/ticket.entity.js';
@@ -165,10 +166,7 @@ export class TypeOrmEventsRepository extends EventsRepository {
     try {
       return await this.tierRepo.save(tier);
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueConstraint(error)) {
         throw new DuplicateTierNameException(data.name);
       }
       throw error;
@@ -211,10 +209,7 @@ export class TypeOrmEventsRepository extends EventsRepository {
     try {
       return await this.tierRepo.save(tier);
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueConstraint(error)) {
         throw new DuplicateTierNameException(data.name ?? tier.name);
       }
       throw error;
