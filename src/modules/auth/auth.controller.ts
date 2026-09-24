@@ -13,6 +13,8 @@ import { AuthResponse, AuthService, TokenPair } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { User } from '../users/entities/user.entity.js';
 
 // TODO: extract into common envelope wrapper type
 type DataResponse<T> = {
@@ -51,6 +53,14 @@ export class AuthController {
     @Body() dto: RefreshTokenDto,
   ): Promise<DataResponse<TokenPair>> {
     const result = await this.authService.refresh(dto.refreshToken);
+    return { data: result };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async me(@CurrentUser() user: User) {
+    const result = await this.authService.getMe(user.id);
     return { data: result };
   }
 }
