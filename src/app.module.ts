@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AppConfigModule } from './config/app-config.module.js';
@@ -13,6 +14,7 @@ import { OrdersModule } from './modules/orders/orders.module.js';
   imports: [
    AppConfigModule,
    DatabaseModule,
+   ScheduleModule.forRoot(),
    HealthCheckModule,
    UsersModule,
    AuthModule,
