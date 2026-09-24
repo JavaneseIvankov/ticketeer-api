@@ -107,7 +107,7 @@ export class OrdersService implements IOrdersService {
       throw new EntityNotFoundException('Pesanan', orderId);
     }
 
-    if (order.customerId !== user.id) {
+    if (user.role === UserRole.CUSTOMER && order.customerId !== user.id) {
       throw new ForbiddenResourceException(
         'Anda tidak memiliki otoritas untuk melihat pesanan ini.',
       );
