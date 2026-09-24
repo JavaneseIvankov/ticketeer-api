@@ -26,8 +26,5 @@ export class RegisterDto {
   @IsEnum(UserRole, { message: 'Role harus bernilai ORGANIZER atau CUSTOMER.' })
   role?: UserRole = UserRole.CUSTOMER;
 
-  @IsOptional()
-  @IsString({ message: 'Nama organisasi harus berupa string.' })
-  organizationName?: string;
 }
 
