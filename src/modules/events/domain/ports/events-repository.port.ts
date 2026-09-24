@@ -1,0 +1,49 @@
+import { Event } from '../../entities/event.entity.js';
+import { PaginationQueryDto } from '../../../../common/dto/pagination-query-dto.js';
+import { PaginatedResult } from '../../../../common/interfaces/paginated-result.interface.js';
+import { EventStatus } from '../../../../common/enums/index.js';
+
+export interface FindEventsFilter {
+  organizerId?: string;
+  status?: EventStatus;
+}
+
+export interface CreateTicketTierData {
+  name: string;
+  price: number;
+  totalQuota: number;
+  maxPerUser?: number;
+  salesStart: Date;
+  salesEnd: Date;
+  eventId?: string;
+}
+
+export interface CreateEventData {
+  organizerId: string;
+  title: string;
+  description: string;
+  venue: string;
+  eventDate: Date;
+  status?: EventStatus;
+}
+
+export interface UpdateEventData {
+  title?: string;
+  description?: string;
+  venue?: string;
+  eventDate?: Date;
+  status?: EventStatus;
+}
+
+export abstract class EventsRepository {
+  abstract findEvents(
+    pagination: PaginationQueryDto,
+    filter?: FindEventsFilter,
+  ): Promise<PaginatedResult<Event>>;
+  abstract findById(id: string): Promise<Event | null>;
+  abstract createEvent(
+    data: CreateEventData,
+    tiers?: CreateTicketTierData[],
+  ): Promise<Event>;
+  abstract updateEvent(id: string, data: UpdateEventData): Promise<Event>;
+}
