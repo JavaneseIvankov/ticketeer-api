@@ -154,6 +154,7 @@ interface User {
    fullName: string
    role: UserRole
    orders: Order[]
+   events: Event[] // jika role == ORGANIZER
 
    createdAt: Date
    updatedAt: Date
@@ -246,7 +247,7 @@ interface TicketTier {
 Agar praktis dan nggak bertele-tele, flow use case dirangkum per modul dengan fokus ke flow utama, batasan bisnis, dan penanganan edge case (terutama soal race condition dan kuota).
 
 
-#### 1. Autentikasi dan Akun (Auth & Users)
+#### 1. Autentikasi dan Akun (Auth dan Users)
 Pemisahan hak akses antara Customer (pembeli tiket) dan Organizer (pengelola event), plus manajemen sesi JWT.
 
 - Registrasi (UC-1.1): Endpoint pendaftaran untuk Customer dan Organizer (pembedanya di field role). Password di-hash dengan bcrypt, email wajib unik (kalau duplikat, throw 409 Conflict).
@@ -255,7 +256,7 @@ Pemisahan hak akses antara Customer (pembeli tiket) dan Organizer (pengelola eve
 - Logout (UC-1.4): Kosongkan hashedRefreshToken di database supaya refresh token yang dipegang client langsung hangus.
 - Profil (/auth/me) (UC-1.5): Mengembalikan data user yang sedang login berdasarkan payload JWT.
 
-#### 2. Manajemen Event dan Tier Tiket (Events & Tiers)
+#### 2. Manajemen Event dan Tier Tiket (Events dan Tiers)
 Dikelola oleh Organizer untuk setup event dan kuota, serta menyediakan katalog untuk publik.
 
 - Buat Event (UC-2.1): Khusus role ORGANIZER. Status awal selalu DRAFT dan otomatis terikat ke user yang sedang login.
@@ -264,7 +265,7 @@ Dikelola oleh Organizer untuk setup event dan kuota, serta menyediakan katalog u
 - Batal Event (Cascade Void) (UC-2.4): Kalau event dibatalkan (CANCELLED), semua tiket yang statusnya ISSUED otomatis diubah jadi VOID dalam transaksi yang sama agar nggak bisa dipakai masuk venue.
 - Katalog Publik (UC-2.5): Publik dan customer bisa melihat daftar event yang berstatus PUBLISHED (mendukung search dan paginasi) beserta detail tier-nya. Event yang masih DRAFT disembunyikan.
 
-#### 3. Reservasi Tiket & Order (Concurrency & War Tiket)
+#### 3. Reservasi Tiket dan Order (Concurrency dan War Tiket)
 Bagian inti sistem untuk menangani lonjakan traffic pemesanan tiket tanpa takut overselling.
 
 - Booking / War Tiket (POST /orders) (UC-3.1):
@@ -280,7 +281,7 @@ Bagian inti sistem untuk menangani lonjakan traffic pemesanan tiket tanpa takut 
 - Batal Order Manual (UC-3.3): Customer bisa membatalkan order selama masih PENDING_PAYMENT. Kuota langsung balik ke tier. Order yang sudah PAID tidak bisa dibatalkan sembarangan.
 - Riwayat Order (UC-3.4): Customer bisa mengecek daftar dan detail order miliknya beserta status dan hitung mundur sisa waktu pembayaran.
 
-#### 4. Tiket dan Gate Check-in (Tickets & Admission)
+#### 4. Tiket dan Gate Check-in (Tickets dan Admission)
 Distribusi e-ticket ke customer dan proses validasi pintu masuk oleh organizer.
 
 - E-Ticket Customer (UC-4.1): Menampilkan tiket resmi yang sudah PAID beserta kode unik dan statusnya.
@@ -304,3 +305,168 @@ Untuk menangani kasus di mana pembeli booking tiket tapi kemudian ditinggal begi
   - Catatan: Pendekatan scheduler cron ini dipilih karena simpel dan cukup untuk scope submission ini, meski untuk skala produksi lebih optimal menggunakan queue berbasis delay seperti BullMQ. Jika masih ada waktu, nantinya kita akan coba untuk mengimplementasikan delayed queue
 
 #### Service, Endpoints, and DTOs modelling
+
+Sesuai arsitektur yang sudah kita rancang, bagian ini memetakan kontrak response envelope, DTO, interface service, dan route endpoints.
+
+_Kita akan memodelkan dalam kode typescript langsung untuk kemudahan, mirip seperti section sebelumnya._
+
+##### 1. Generic Response Envelope dan Query Shape
+Standard wrapper untuk response data singular dan pagination
+
+```ts
+interface DataResponse<T> {
+  data: T;
+}
+
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
+interface PaginationQueryDto {
+  page?: number; // default: 1
+  limit?: number; // default: 10, max: 100
+  search?: string; // opsional: pencarian keyword
+}
+```
+
+##### 2. Modul Events dan Tiers (Events, Tiers, Reports, dan Admission)
+Mengelola event, kategori tiket, laporan omzet organizer, serta gate admission:
+
+```ts
+// DTOs
+interface CreateEventDto {
+  title: string;
+  description: string;
+  venue: string;
+  eventDate: Date; // harus tanggal masa depan
+}
+
+interface UpdateEventDto extends Partial<CreateEventDto> {
+  status?: EventStatus;
+}
+
+interface CreateTicketTierDto {
+  name: string;
+  price: number;
+  totalQuota: number;
+  maxPerUser: number;
+  salesStart: Date;
+  salesEnd: Date;
+}
+
+interface UpdateTicketTierDto {
+  name?: string;
+  price?: number;
+  totalQuota?: number; // tidak boleh kurang dari tiket yang sudah terjual
+}
+
+interface EventReportTierBreakdown {
+  tierId: string;
+  tierName: string;
+  price: number;
+  totalQuota: number;
+  availableQuota: number;
+  soldTickets: number;
+  revenue: number;
+}
+
+interface EventReportDto {
+  eventId: string;
+  eventTitle: string;
+  totalQuota: number;
+  soldTickets: number;
+  availableQuota: number;
+  grossRevenue: number;
+  tiers: EventReportTierBreakdown[];
+}
+
+// Service Interface
+interface IEventsService {
+  findPublishedEvents(pagination: PaginationQueryDto): Promise<PaginatedResult<Event>>;
+  findOrganizerEvents(user: User, pagination: PaginationQueryDto): Promise<PaginatedResult<Event>>;
+  getEventById(id: string): Promise<Event>;
+  createEvent(user: User, dto: CreateEventDto): Promise<Event>;
+  updateEvent(eventId: string, user: User, dto: UpdateEventDto): Promise<Event>;
+  cancelEvent(eventId: string, user: User): Promise<Event>; // Cascade VOID tiket
+  addTicketTier(eventId: string, user: User, dto: CreateTicketTierDto): Promise<TicketTier>;
+  updateTicketTier(eventId: string, tierId: string, user: User, dto: UpdateTicketTierDto): Promise<TicketTier>;
+  getEventReports(eventId: string, user: User): Promise<EventReportDto>;
+  getEventAttendees(eventId: string, user: User, pagination: PaginationQueryDto): Promise<PaginatedResult<Ticket>>;
+  admitAttendee(eventId: string, ticketId: string, user: User): Promise<Ticket>;
+}
+
+// Endpoint Mapping (EventsController)
+// GET /events -> Public (findPublishedEvents)
+// GET /events/organizer/my-events -> Guard(ORGANIZER) (findOrganizerEvents)
+// GET /events/:id -> Public (getEventById)
+// POST /events -> Guard(ORGANIZER) (createEvent)
+// PATCH /events/:id -> Guard(ORGANIZER) (updateEvent)
+// DELETE /events/:id -> Guard(ORGANIZER) (cancelEvent)
+// POST /events/:id/tiers -> Guard(ORGANIZER) (addTicketTier)
+// PATCH /events/:id/tiers/:tierId -> Guard(ORGANIZER) (updateTicketTier)
+// GET /events/:id/reports -> Guard(ORGANIZER) (getEventReports)
+// GET /events/:id/attendees -> Guard(ORGANIZER) (getEventAttendees)
+// PATCH /events/:id/attendees/:ticketId/admit -> Guard(ORGANIZER) (admitAttendee)
+```
+
+##### 3. Modul Orders (War Tiket, Concurrency, Pembayaran) dan Scheduler
+Menangani reservasi tiket dengan conditional update (anti-overselling), hold-window 15 menit, dan simulasi pembayaran:
+
+```ts
+// DTOs
+interface ReserveTicketDto {
+  quantity: number; // 1 <= quantity <= maxPerUser
+  idempotencyKey?: string; // opsional untuk mencegah duplikasi order
+}
+
+interface PayOrderDto {
+  paymentMethod?: string; // simulasi, misal BANK_TRANSFER
+}
+
+// Service Interface
+interface IOrdersService {
+  reserveTickets(eventId: string, tierId: string, user: User, dto: ReserveTicketDto): Promise<Order>;
+  getOrderById(orderId: string, user: User): Promise<Order>;
+  getMyOrders(user: User, pagination: PaginationQueryDto): Promise<PaginatedResult<Order>>;
+  payOrder(orderId: string, user: User, dto: PayOrderDto): Promise<Order>;
+  cancelOrder(orderId: string, user: User): Promise<Order>;
+  releaseExpiredOrders(): Promise<number>; // dieksekusi oleh scheduler
+}
+
+// Endpoint Mapping (OrdersController dan EventReservationsController)
+// POST /events/:id/tiers/:tierId/reserve -> Guard(CUSTOMER) (reserveTickets / War tiket)
+// GET /orders/my -> Guard(CUSTOMER) (getMyOrders)
+// GET /orders/:id -> Guard(JWT) (getOrderById)
+// POST /orders/:id/pay -> Guard(CUSTOMER) (payOrder)
+// DELETE /orders/:id -> Guard(CUSTOMER) (cancelOrder)
+
+// Background Scheduler (OrdersScheduler)
+// @Cron('*/1 * * * *') -> handleExpiredOrders(): memanggil releaseExpiredOrders()
+```
+
+##### 4. Modul Tickets (Sisi Customer)
+Pengambilan e-ticket resmi bagi pengguna yang sudah menyelesaikan pembayaran:
+
+```ts
+// Service Interface
+interface ITicketsService {
+  getMyTickets(user: User, pagination: PaginationQueryDto): Promise<PaginatedResult<Ticket>>;
+  getTicketById(ticketId: string, user: User): Promise<Ticket>;
+  getTicketByCode(ticketCode: string, user: User): Promise<Ticket>;
+}
+
+// Endpoint Mapping (TicketsController)
+// GET /tickets/my -> Guard(CUSTOMER) (getMyTickets)
+// GET /tickets/:id -> Guard(JWT) (getTicketById)
+// GET /tickets/code/:code -> Guard(JWT) (getTicketByCode)
+```
