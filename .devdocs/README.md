@@ -15,6 +15,85 @@ GIVEN, WHEN, THEN ([referensi](https://agilealliance.org/glossary/given-when-the
 
 Tapi sebelum itu kita perlu mendefinisika entity apa saja yang terlibat di domain aplikasi ini.
 
+### Tech Stacks
+Sesuai dengan arahan untuk challenge ini, kita akan memakai NestJS sebagai backend framework. Untuk keputusan library pendamping lain, saya akan mengikuti dokumentasi resmi dari docs NestJS untuk memilih library dengan support dan dokumentasi paling baik, yaitu:
+
+- nestjs/config untuk env config management
+- class-validator untuk parsing env dan validasi input 
+- typeorm untuk orm dan manajemen skema database
+- nestjs/passport untuk memudahkan autentikasi JWT
+- supertest dan vitest untuk testing 
+- nestjs/schedule untuk background job 
+
+### Struktur Proyek
+Ini merupakan desain awal, proyek
+```
+ticketeer-api/
+├─ .devdocs/
+│  ├─ README.md
+├─ src/
+│  ├─ main.ts
+│  ├─ app.module.ts
+│  ├─ app.controller.ts
+│  ├─ app.controller.spec.ts
+│  ├─ app.service.ts
+│  ├─ common/
+│  │  ├─ decorators/
+│  │  ├─ dto/
+│  │  ├─ enums/
+│  │  ├─ errors/
+│  │  ├─ filters/
+│  │  ├─ guards/
+│  │  ├─ interfaces/
+│  ├─ config/
+│  ├─ database/
+│  ├─ modules/
+│  │  ├─ auth/
+│  │  ├─ events/
+│  │  ├─ orders/
+│  │  ├─ tickets/
+│  │  ├─ users/
+│  ├─ test/
+├─ package.json
+├─ README.md
+```
+
+### Error Handling
+Untuk memudahkan error matching, handling, dan filtering, kita akan mendefinisikan sebuah custom error class bernama DomainException, yang diturunkan dari kelas HttpException (sehingga mempermudah handling di response boundary nantinya). 
+
+Nantinya kita akan menurunkan DomainException ini untuk setiap Domain Error spesifik (seperti QuotaExceededException) yang akan kita gunakan untuk pemodelan failure modes pada usecases. Selain itu, saya pikir akan merasa terbantu jika kita juga menurukan DomainException ke bentuk yang generic seperti EntityNotFoundException yang bisa digunakan di berbagai macam modul ketika kita menemui kasus dimana sebuah entitas tidak ditemukan.
+
+
+setiap module dalam modules kurang lebih akan memiliki struktur seperti ini
+
+```
+modules/
+├─ <nama fitur>/ 
+│  ├─ domain/
+│  │  ├─ errors/ --> custom domain error 
+│  │  ├─ ports/ --> berisi kontrak (berupa abstract class) yang akan diimplementasikan di infra
+│  ├─ dto/ --> bentuk request dan response (diimplementasikan dalam bentuk class)
+│  ├─ entities/ --> entitas (annnotated dengan ORM decorators)
+│  ├─ infra/ --> implementasi dari ports
+│  ├─ <nama fitur>.module.ts
+```
+
+Cross cutting concern yang berkaitan dengan error, seperti Validation error dan request parsing, akan dihandle oleh ValidationPipe (app.useGlobalPipes(...)).
+
+Kita juga akan memakai global filter (app.useGlobalFilters(...)) untuk menangkap dan formatting error di boundary
+
+### Response Envelope Convention
+Untuk predictability dan ease of use, kita akan menggunakan wrapper type yang uniform untuk respons, 
+
+Ada beberapa kasus yang harus kita pikirkan, yaitu:
+- Success (data) envelope
+- Pagination Meta
+- Error/Failure envelope 
+   - Singular
+   - Plural -> Validation error, dimana akan mengakumulasi error.
+
+
+
 ### Domain Modeling
 
 #### Definisi
