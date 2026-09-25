@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PaginationQueryDto } from '../../common/dto/pagination-query-dto.js';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 import { Order, User } from '../../database/entities.js';
@@ -33,6 +33,8 @@ export interface IOrdersService {
 
 @Injectable()
 export class OrdersService implements IOrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly ordersRepository: OrdersRepository,
     private readonly eventsRepository: EventsRepository,
@@ -82,7 +84,7 @@ export class OrdersService implements IOrdersService {
     // TODO: extract expiration time into const or helper?
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    return this.ordersRepository.reserve({
+    const order = await this.ordersRepository.reserve({
       customerId: user.id,
       eventId,
       ticketTierId: tierId,
@@ -92,6 +94,12 @@ export class OrdersService implements IOrdersService {
       expiresAt,
       idempotencyKey: dto.idempotencyKey,
     });
+
+    this.logger.log(
+      `Order reserved: ${order.orderNumber} (${dto.quantity} tickets) by user ${user.id}`,
+    );
+
+    return order;
   }
 
   async getMyOrders(
@@ -129,7 +137,9 @@ export class OrdersService implements IOrdersService {
       );
     }
 
-    return this.ordersRepository.payOrder(orderId);
+    const paid = await this.ordersRepository.payOrder(orderId);
+    this.logger.log(`Order paid: ${paid.orderNumber}`);
+    return paid;
   }
 
   async cancelOrder(orderId: string, user: User): Promise<Order> {
@@ -141,7 +151,11 @@ export class OrdersService implements IOrdersService {
       );
     }
 
-    return this.ordersRepository.cancelOrder(orderId);
+    const cancelled = await this.ordersRepository.cancelOrder(orderId);
+    this.logger.log(
+      `Order cancelled: ${cancelled.orderNumber} by user ${user.id}`,
+    );
+    return cancelled;
   }
 
   async releaseExpiredOrders(): Promise<number> {
