@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PaginationQueryDto } from '../../common/dto/pagination-query-dto.js';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 import { Event, Ticket, TicketTier, User } from '../../database/entities.js';
@@ -54,6 +54,8 @@ export interface IEventsService {
 
 @Injectable()
 export class EventsService implements IEventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(private readonly eventsRepository: EventsRepository) {}
 
   async findPublishedEvents(
@@ -98,7 +100,7 @@ export class EventsService implements IEventsService {
       }
     }
 
-    return this.eventsRepository.createEvent(
+    const event = await this.eventsRepository.createEvent(
       {
         title: dto.title,
         description: dto.description,
@@ -116,6 +118,12 @@ export class EventsService implements IEventsService {
         salesEnd: new Date(t.salesEnd),
       })),
     );
+
+    this.logger.log(
+      `Event created: "${event.title}" with id ${event.id}, by organizer ${user.id}`,
+    );
+
+    return event;
   }
 
   async updateEvent(
@@ -151,7 +159,9 @@ export class EventsService implements IEventsService {
       );
     }
 
-    return this.eventsRepository.cancelEvent(eventId);
+    const cancelled = await this.eventsRepository.cancelEvent(eventId);
+    this.logger.log(`Event ${eventId} cancelled by organizer ${user.id}`);
+    return cancelled;
   }
 
   async addTicketTier(
@@ -239,7 +249,11 @@ export class EventsService implements IEventsService {
     const event = await this.getEventById(eventId);
     this.assertOwnership(event, user);
 
-    return this.eventsRepository.admitAttendee(eventId, ticketId);
+    const ticket = await this.eventsRepository.admitAttendee(eventId, ticketId);
+    this.logger.log(
+      `Attendee checkin: ticket ${ticket.ticketCode} admited for event ${eventId}`,
+    );
+    return ticket;
   }
 
   private assertOwnership(event: Event, user: User): void {

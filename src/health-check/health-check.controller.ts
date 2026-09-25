@@ -14,8 +14,8 @@ export class HealthCheckController {
             database: 'up',
             timestamp: new Date().toISOString()
          }
-      } catch (error) {
-         throw  new ServiceUnavailableException({
+      } catch {
+         throw new ServiceUnavailableException({
             status: 'error',
             database: 'down',
             timestamp: new Date().toISOString()

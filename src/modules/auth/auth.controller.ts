@@ -5,7 +5,6 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto.js';

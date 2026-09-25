@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomUUID } from 'node:crypto';
@@ -27,6 +27,8 @@ export interface AuthResponse extends TokenPair {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly jwtService: JwtService,
@@ -50,6 +52,8 @@ export class AuthService {
     const tokens = await this.generateTokens(user);
     await this.updateHashedRefreshToken(user.id, tokens.refreshToken);
 
+    this.logger.log(`User registered: ${user.email} (${user.role})`);
+
     return {
       user: this.sanitizeUser(user),
       ...tokens,
@@ -69,6 +73,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     await this.updateHashedRefreshToken(user.id, tokens.refreshToken);
+
+    this.logger.log(`User login: ${user.email}`);
 
     return {
       user: this.sanitizeUser(user),
@@ -110,11 +116,14 @@ export class AuthService {
     const newTokens = await this.generateTokens(user);
     await this.updateHashedRefreshToken(user.id, newTokens.refreshToken);
 
+    this.logger.log(`Tokens rotated for user ${user.id}`);
+
     return newTokens;
   }
 
   async logout(userId: string): Promise<{ message: string }> {
     await this.usersRepository.updateRefreshToken(userId, null);
+    this.logger.log(`User ${userId} logged out`);
     return { message: 'Logout berhasil. Sesi telah dibatalkan.' };
   }
 
@@ -169,7 +178,7 @@ export class AuthService {
 
   // sanitasi sensitive info agar tidak bocor ke client
   private sanitizeUser(user: User): Omit<User, 'password' | 'hashedRefreshToken'> {
-    const { password: _, hashedRefreshToken, ...sanitized } = user;
+    const { password: _p, hashedRefreshToken: _h, ...sanitized } = user;
     return sanitized;
   }
 }

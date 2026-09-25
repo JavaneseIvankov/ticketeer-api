@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   EntityNotFoundException,
   ForbiddenResourceException,
@@ -12,12 +12,15 @@ import { UserRole } from '../../common/enums/index.js';
 
 @Injectable()
 export class TicketsService implements ITicketsService {
+  private readonly logger = new Logger(TicketsService.name);
+
   constructor(private readonly ticketsRepository: TicketsRepository) {}
 
   async getMyTickets(
     user: User,
     pagination: PaginationQueryDto,
   ): Promise<PaginatedResult<Ticket>> {
+    this.logger.log(`Fetching tickets for customer ${user.id}`);
     return this.ticketsRepository.findByCustomerId(user.id, pagination);
   }
 
@@ -45,6 +48,7 @@ export class TicketsService implements ITicketsService {
       );
     }
 
+    this.logger.log(`Ticket retrieved: ${ticket.ticketCode} by user ${user.id}`);
     return ticket;
   }
 
@@ -74,6 +78,7 @@ export class TicketsService implements ITicketsService {
       );
     }
 
+    this.logger.log(`Ticket retrieved by code: ${ticketCode}`);
     return ticket;
   }
 }

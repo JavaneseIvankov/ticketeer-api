@@ -42,6 +42,10 @@ export class AppHttpExceptionFilter implements ExceptionFilter {
         `[${request.method}] ${request.url} - ${err.message}`,
         err.stack,
       );
+    } else if (details.statusCode >= HttpStatus.BAD_REQUEST) {
+      this.logger.warn(
+        `[${request.method}] ${request.url} [${details.statusCode}] ${details.message}`,
+      );
     }
 
     const payload: ApiErrorResponseDto = {
