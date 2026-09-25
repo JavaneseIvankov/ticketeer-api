@@ -1,4 +1,9 @@
-import { RequestMethod, ValidationError, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  RequestMethod,
+  ValidationError,
+  ValidationPipe,
+} from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { AppConfigService } from './config/app-config.service.js';
@@ -27,5 +32,6 @@ async function bootstrap() {
   );
 
   await app.listen(config.port);
+  new Logger('Bootstrap').log(`Application running on port ${config.port}`);
 }
 await bootstrap();
