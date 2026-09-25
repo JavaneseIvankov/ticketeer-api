@@ -1,29 +1,32 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module.js';
+import { createTestingApp } from './test-helper.js';
+import dotenv from 'dotenv';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+dotenv.config({
+  path: ['.env', '.env.local', '.env.test'],
+});
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+describe('HealthCheck (e2e)', () => {
+  let app: INestApplication;
+  const isProd = process.env?.NODE_ENV === 'production';
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createTestingApp({ cleanDb: !isProd });
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
+  });
+
+  it('GET /health - harus mengembalikan status ok dan database up', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/health')
+      .expect(200);
+
+    expect(res.body).toHaveProperty('status', 'ok');
+    expect(res.body).toHaveProperty('database', 'up');
+    expect(res.body).toHaveProperty('timestamp');
   });
 });
