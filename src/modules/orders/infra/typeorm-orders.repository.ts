@@ -17,7 +17,10 @@ import {
 } from '../domain/errors/orders.errors.js';
 import { InvalidEventStateException } from '../../events/domain/errors/events.errors.js';
 import { EntityNotFoundException } from '../../../common/errors/generic-domain.exception.js';
-import { isCheckConstraint } from '../../../common/errors/postgres-error.helper.js';
+import {
+  isCheckConstraint,
+  isUniqueConstraint,
+} from '../../../common/errors/postgres-error.helper.js';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query-dto.js';
 import {
   PaginatedResult,
@@ -115,6 +118,12 @@ export class TypeOrmOrdersRepository extends OrdersRepository {
         throw new QuotaExceededException(
           'Tiket habis atau kuota tidak mencukupi untuk jumlah yang diminta.',
         );
+      }
+      if (isUniqueConstraint(error) && params.idempotencyKey) {
+        const existing = await this.findByIdempotencyKey(params.idempotencyKey);
+        if (existing) {
+          return existing;
+        }
       }
       throw error;
     }
