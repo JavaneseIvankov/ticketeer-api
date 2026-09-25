@@ -39,11 +39,14 @@ export class AuthController {
     return { data: result };
   }
 
-  // TODO: delete this
-  @Get('protected')
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async protectedSection() {
-    return { data: 'Hi, this is protected section' };
+  async logout(
+    @CurrentUser() user: User,
+  ): Promise<DataResponse<{ message: string }>> {
+    const result = await this.authService.logout(user.id);
+    return { data: result };
   }
 
   @Post('refresh')
