@@ -119,7 +119,7 @@ export class OrdersService implements IOrdersService {
   async payOrder(
     orderId: string,
     user: User,
-    dto: PayOrderDto,
+    _dto: PayOrderDto,
   ): Promise<Order> {
     const order = await this.getOrderById(orderId, user);
 

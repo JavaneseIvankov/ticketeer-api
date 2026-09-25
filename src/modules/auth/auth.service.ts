@@ -169,7 +169,7 @@ export class AuthService {
 
   // sanitasi sensitive info agar tidak bocor ke client
   private sanitizeUser(user: User): Omit<User, 'password' | 'hashedRefreshToken'> {
-    const { password: _, hashedRefreshToken, ...sanitized } = user;
+    const { password: _p, hashedRefreshToken: _h, ...sanitized } = user;
     return sanitized;
   }
 }
