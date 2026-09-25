@@ -270,7 +270,7 @@ Bagian inti sistem untuk menangani lonjakan traffic pemesanan tiket tanpa takut 
 
 - Booking / War Tiket (POST /orders) (UC-3.1):
   - Validasi dasar: user role Customer, event status PUBLISHED, waktu pembelian berada di rentang salesStart–salesEnd, dan jumlah tiket tidak melebihi maxPerUser.
-  - Penanganan Concurrency: Menggunakan atomic conditional update dan pessimistic_write lock di TypeOrm.
+  - Penanganan Concurrency: Menggunakan atomic conditional update pada query database (memotong kuota hanya jika availableQuota masih mencukupi). Pendekatan ini dipilih alih-alih pessimistic write lock (SELECT FOR UPDATE) agar tidak mengunci antrean query sejak awal dan menjaga throughput sistem tetap optimal saat lonjakan traffic war tiket, dengan jaminan database constraint bahwa kuota tidak akan pernah minus.
   - Kalau kuota aman, order dibuat dengan status PENDING_PAYMENT dan diberi batas bayar 15 menit (expiresAt).
   - Kalau kuota habis / kalah cepat, query mengembalikan 0 baris dan sistem melempar 409 Conflict. Data kuota di db dijamin aman dan tidak pernah minus.
   - Idempotency: Client bisa mengirim header Idempotency-Key. Kalau ada retry jaringan dengan key yang sama, langsung kembalikan order yang sudah berhasil dibuat tanpa memotong kuota ulang.
