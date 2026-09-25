@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { TicketsModule } from './modules/tickets/tickets.module.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { OrdersModule } from './modules/orders/orders.module.js';
    AuthModule,
    EventsModule,
    OrdersModule,
+   TicketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
